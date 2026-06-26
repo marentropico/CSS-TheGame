@@ -10,26 +10,35 @@ Este projeto é **100% Client-Side** (roda inteiramente no navegador), livre de 
 
 O jogo possui suporte completo a múltiplos temas visuais icônicos que alteram drasticamente a experiência do usuário. Você pode alternar os temas diretamente no painel principal:
 
-### 1. 🌌 Modern Indigo (Padrão)
-Um visual elegante, escuro e de alta fidelidade técnica, utilizando tons sutis de azul profundo, ardósia e gradientes de roxo futurista.
-
-<p align="center">
-  <img src="assets/screenshots/theme_modern.png" alt="Tema Modern Indigo" width="600" />
-</p>
-
-### 2. 🧛 Dracula Theme
-Inspirado na clássica e amada paleta de cores para programadores, trazendo o contraste perfeito com destaques em rosa, roxo e verde neon.
-
-<p align="center">
-  <img src="assets/screenshots/theme_dracula.png" alt="Tema Dracula" width="600" />
-</p>
-
-### 3. 💾 Retro Windows 95 / DOS
-Um retorno nostálgico aos sistemas operacionais clássicos! Botões chanfrados tridimensionais, fontes monoespaçadas, barras de progresso cinzas e bordas duplas pontilhadas.
-
-<p align="center">
-  <img src="assets/screenshots/theme_retro.png" alt="Tema Retro Windows 95" width="600" />
-</p>
+<table>
+  <tr valign="top">
+    <td width="40%">
+      <h3>1. 🌌 Modern Indigo (Padrão)</h3>
+      <p>Um visual elegante, escuro e de alta fidelidade técnica, utilizando tons sutis de azul profundo, ardósia e gradientes de roxo futurista.</p>
+    </td>
+    <td width="60%">
+      <img src="assets/screenshots/theme_modern.png" alt="Tema Modern Indigo" width="100%" />
+    </td>
+  </tr>
+  <tr valign="top">
+    <td width="40%">
+      <h3>2. 🧛 Dracula Theme</h3>
+      <p>Inspirado na clássica e amada paleta de cores para programadores, trazendo o contraste perfeito com destaques em rosa, roxo e verde neon.</p>
+    </td>
+    <td width="60%">
+      <img src="assets/screenshots/theme_dracula.png" alt="Tema Dracula" width="100%" />
+    </td>
+  </tr>
+  <tr valign="top">
+    <td width="40%">
+      <h3>3. 💾 Retro Windows 95 / DOS</h3>
+      <p>Um retorno nostálgico aos sistemas operacionais clássicos! Botões chanfrados tridimensionais, fontes monoespaçadas, barras de progresso cinzas e bordas duplas pontilhadas.</p>
+    </td>
+    <td width="60%">
+      <img src="assets/screenshots/theme_retro.png" alt="Tema Retro Windows 95" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -64,12 +73,17 @@ Os desafios são progressivos e abordam tópicos essenciais para o desenvolvimen
 ### 🔊 6. Sintetizador de Efeitos Sonoros Nativo
 * Utiliza a **HTML5 Web Audio API** para sintetizar ondas senoidais e quadradas em tempo real! Não há carregamento de arquivos de áudio pesados, permitindo efeitos sonoros retrô instantâneos para acertos, erros, cliques e level up.
 
-### 📱 7. Responsividade Completa & Modo Paisagem
-* Otimizado para dispositivos móveis! Se o usuário deitar o celular (Modo Paisagem/Landscape), o layout automaticamente se reajusta para o formato de duas colunas semelhante ao desktop (preview à esquerda e editor à direita), maximizando o espaço disponível.
-
-<p align="center">
-  <img src="assets/screenshots/mobile_exercise.png" alt="Visual de Exercício no Mobile" width="300" />
-</p>
+<table>
+  <tr valign="top">
+    <td width="70%">
+      <h3>📱 7. Responsividade Completa & Modo Paisagem</h3>
+      <p>Otimizado para dispositivos móveis! Se o usuário deitar o celular (Modo Paisagem/Landscape), o layout automaticamente se reajusta para o formato de duas colunas semelhante ao desktop (preview à esquerda e editor à direita), maximizando o espaço disponível.</p>
+    </td>
+    <td width="30%">
+      <img src="assets/screenshots/mobile_exercise.png" alt="Visual de Exercício no Mobile" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
