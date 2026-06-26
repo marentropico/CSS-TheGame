@@ -131,9 +131,8 @@ export default function SandboxPreview({
   };
 
   const handleResetClick = () => {
-    if (window.confirm("Deseja realmente reiniciar o código deste nível para os estilos padrão?")) {
-      resetCode();
-    }
+    // Delegate confirmation entirely to the parent (App.tsx shows the in-app confirm modal)
+    resetCode();
   };
 
   return (

@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
 import { levels, achievementsData } from "./levelsData";
-import { UserProgress, Achievement, AppTheme } from "./types";
+import { UserProgress, Achievement, AppTheme, DEFAULT_USER_PROGRESS, ConfirmModalConfig } from "./types";
 import Sidebar from "./components/Sidebar";
 import CodeEditor from "./components/CodeEditor";
 import SandboxPreview from "./components/SandboxPreview";
 import { playSound } from "./utils/audio";
 import { quizQuestions } from "./data/quizData";
 import { runFullStressTestSuite, StressTestResult } from "./utils/stressTester";
+import { checkAchievements, calculateNextStreak, shouldResetStreak } from "./utils/achievements";
 import {
   ArrowLeft,
   ArrowRight,
-  Award,
   CheckCircle2,
-  ChevronRight,
-  HelpCircle,
   Trophy,
   Sparkles,
   Heart,
@@ -23,9 +21,8 @@ import {
   X,
   Cpu,
   RefreshCw,
-  Eye,
-  AlertTriangle,
-  BookOpen
+  BookOpen,
+  AlertTriangle
 } from "lucide-react";
 
 const LOCAL_STORAGE_KEY = "css_academy_progress_v1";
@@ -47,34 +44,32 @@ export default function App() {
     localStorage.setItem("css_academy_theme", theme);
   }, [theme]);
 
-  // Load initial progress from localStorage if available
+  // In-app confirm modal (replaces window.confirm)
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalConfig | null>(null);
+
+  const showConfirm = (config: ConfirmModalConfig) => setConfirmModal(config);
+  const closeConfirm = () => setConfirmModal(null);
+
+  // Load initial progress from localStorage — with migration for legacy saves
   const [progress, setProgress] = useState<UserProgress>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Ensure defaults for new properties
-        if (parsed.xp === undefined) parsed.xp = 0;
-        if (parsed.hearts === undefined) parsed.hearts = 5;
-        if (parsed.streak === undefined) parsed.streak = 0;
-        if (parsed.lastActiveDate === undefined) parsed.lastActiveDate = "";
-        return parsed;
+        // Migrate optional fields from old saves to non-optional defaults
+        return {
+          ...DEFAULT_USER_PROGRESS,
+          ...parsed,
+          xp: parsed.xp ?? 0,
+          hearts: parsed.hearts ?? 5,
+          streak: parsed.streak ?? 0,
+          lastActiveDate: parsed.lastActiveDate ?? "",
+        } as UserProgress;
       }
     } catch (e) {
       console.error("Error reading progress from localStorage", e);
     }
-    
-    // Default initial progress
-    return {
-      currentLevelId: 1,
-      completedLevels: [],
-      levelCss: {},
-      unlockedAchievements: [],
-      xp: 0,
-      hearts: 5,
-      streak: 0,
-      lastActiveDate: ""
-    };
+    return { ...DEFAULT_USER_PROGRESS };
   });
 
   // Current level state
@@ -121,22 +116,18 @@ export default function App() {
   const [stressResults, setStressResults] = useState<StressTestResult[] | null>(null);
   const [isStressTesting, setIsStressTesting] = useState(false);
 
-  // Check and calculate Streak on mount
+  // On mount: check streak health and update lastActiveDate to today
   useEffect(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
-    const lastActiveStr = progress.lastActiveDate ? progress.lastActiveDate.split("T")[0] : "";
-    
-    if (lastActiveStr && lastActiveStr !== todayStr) {
-      const lastActive = new Date(lastActiveStr);
-      const today = new Date(todayStr);
-      const diffTime = Math.abs(today.getTime() - lastActive.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      // If they skipped more than 1 day, reset streak
-      if (diffDays > 1) {
-        updateProgress({ streak: 0 });
-      }
+    if (shouldResetStreak(progress.lastActiveDate)) {
+      updateProgress({ streak: 0 });
     }
+    // Track that user opened the app today (for streak purposes)
+    const todayStr = new Date().toISOString().split("T")[0];
+    const lastStr = progress.lastActiveDate ? progress.lastActiveDate.split("T")[0] : "";
+    if (lastStr !== todayStr) {
+      updateProgress({ lastActiveDate: new Date().toISOString() });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load level initial code or saved progress code
@@ -199,10 +190,8 @@ export default function App() {
   // Run the validation check on the current level CSS
   const handleRunCode = () => {
     // Check if user has lives
-    const currentHearts = progress.hearts !== undefined ? progress.hearts : 5;
-    if (currentHearts <= 0) {
+    if (progress.hearts <= 0) {
       playSound("failure");
-      alert("Você está sem vidas! Faça um treino rápido de CSS para recuperar corações.");
       setShowPractice(true);
       return;
     }
@@ -238,70 +227,25 @@ export default function App() {
         ? progress.completedLevels
         : [...progress.completedLevels, currentLevel.id];
 
-      // XP Rewards
+      // XP Rewards — full points without solution, reduced with solution
       let xpGained = 0;
       if (!alreadyCompleted) {
-        // If they did it without revealing the solution: 100 XP. Otherwise 20 XP.
         xpGained = solutionRevealed ? 20 : 100;
       }
 
-      const currentXp = progress.xp !== undefined ? progress.xp : 0;
-      const nextXp = currentXp + xpGained;
+      const nextXp = progress.xp + xpGained;
+      const nextStreak = calculateNextStreak(progress.streak, progress.lastActiveDate);
 
-      // Calculate streak increment
-      const todayStr = new Date().toISOString().split("T")[0];
-      const lastActiveStr = progress.lastActiveDate ? progress.lastActiveDate.split("T")[0] : "";
-      let nextStreak = progress.streak !== undefined ? progress.streak : 0;
-
-      if (lastActiveStr !== todayStr) {
-        nextStreak += 1;
-      }
-
-      // Check achievements triggers
-      const nextUnlockedAchievements = [...progress.unlockedAchievements];
-      const newlyUnlocked: Achievement[] = [];
-
-      // Achievement 1: Primeiros Passos (Completed Level 1)
-      if (nextCompleted.includes(1) && !nextUnlockedAchievements.includes("first_steps")) {
-        nextUnlockedAchievements.push("first_steps");
-        const found = achievementsData.find(a => a.id === "first_steps");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
-
-      // Achievement 2: Mestre das Caixas (Completed Level 2)
-      if (nextCompleted.includes(2) && !nextUnlockedAchievements.includes("box_master")) {
-        nextUnlockedAchievements.push("box_master");
-        const found = achievementsData.find(a => a.id === "box_master");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
-
-      // Achievement 3: Ninja do Flexbox (Completed Level 5 and 6)
-      if (nextCompleted.includes(5) && nextCompleted.includes(6) && !nextUnlockedAchievements.includes("flex_ninja")) {
-        nextUnlockedAchievements.push("flex_ninja");
-        const found = achievementsData.find(a => a.id === "flex_ninja");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
-
-      // Achievement 4: Arquiteto de Grelhas (Completed Level 7)
-      if (nextCompleted.includes(7) && !nextUnlockedAchievements.includes("grid_architect")) {
-        nextUnlockedAchievements.push("grid_architect");
-        const found = achievementsData.find(a => a.id === "grid_architect");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
-
-      // Achievement 5: Mestre das Animações (Completed Level 9 and 10)
-      if (nextCompleted.includes(9) && nextCompleted.includes(10) && !nextUnlockedAchievements.includes("animator")) {
-        nextUnlockedAchievements.push("animator");
-        const found = achievementsData.find(a => a.id === "animator");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
-
-      // Achievement 6: Especialista em CSS (Completed all 10 levels)
-      if (nextCompleted.length === levels.length && !nextUnlockedAchievements.includes("css_expert")) {
-        nextUnlockedAchievements.push("css_expert");
-        const found = achievementsData.find(a => a.id === "css_expert");
-        if (found) newlyUnlocked.push({ ...found, unlocked: true, unlockedAt: new Date().toISOString() });
-      }
+      // Check achievements using pure utility function
+      const newlyUnlocked = checkAchievements(
+        nextCompleted,
+        progress.unlockedAchievements,
+        levels.length
+      );
+      const nextUnlockedAchievements = [
+        ...progress.unlockedAchievements,
+        ...newlyUnlocked.map((a) => a.id),
+      ];
 
       updateProgress({
         completedLevels: nextCompleted,
@@ -309,7 +253,7 @@ export default function App() {
         unlockedAchievements: nextUnlockedAchievements,
         xp: nextXp,
         streak: nextStreak,
-        lastActiveDate: new Date().toISOString()
+        lastActiveDate: new Date().toISOString(),
       });
 
       // Trigger achievement modal first, then level success modal
@@ -320,20 +264,10 @@ export default function App() {
         setShowLevelSuccess(true);
       }
     } else {
-      // Loose a life!
-      const currentHearts = progress.hearts !== undefined ? progress.hearts : 5;
-      const nextHearts = Math.max(0, currentHearts - 1);
-      
-      if (nextHearts === 0) {
-        playSound("failure");
-      } else {
-        playSound("heart_lost");
-      }
-
-      updateProgress({
-        levelCss: updatedLevelCss,
-        hearts: nextHearts
-      });
+      // Lose a life!
+      const nextHearts = Math.max(0, progress.hearts - 1);
+      playSound(nextHearts === 0 ? "failure" : "heart_lost");
+      updateProgress({ levelCss: updatedLevelCss, hearts: nextHearts });
     }
   };
 
@@ -355,10 +289,16 @@ export default function App() {
   };
 
   const resetLevelCode = () => {
-    if (window.confirm("Deseja realmente resetar o código deste nível para o estado inicial?")) {
-      setEditorCode(currentLevel.initialCss);
-      setCheckedState(null);
-    }
+    showConfirm({
+      message: "Deseja realmente resetar o código deste nível para o estado inicial? Todo o progresso digitado será perdido.",
+      confirmLabel: "Resetar Código",
+      cancelLabel: "Cancelar",
+      variant: "danger",
+      onConfirm: () => {
+        setEditorCode(currentLevel.initialCss);
+        setCheckedState(null);
+      },
+    });
   };
 
   // Close newly unlocked achievement modal and transition to level success
@@ -383,19 +323,13 @@ export default function App() {
     if (selectedAnswer === null) return;
     const currentQuestion = quizQuestions[quizIndex];
     const isCorrect = selectedAnswer === currentQuestion.correctIndex;
-    
     setQuizIsCorrect(isCorrect);
     setQuizSubmitted(true);
-
     if (isCorrect) {
       playSound("success");
-      // Add a heart and grant 15 XP points
-      const currentHearts = progress.hearts !== undefined ? progress.hearts : 5;
-      const currentXp = progress.xp !== undefined ? progress.xp : 0;
-      
       updateProgress({
-        hearts: Math.min(5, currentHearts + 1),
-        xp: currentXp + 15
+        hearts: Math.min(5, progress.hearts + 1),
+        xp: progress.xp + 15,
       });
     } else {
       playSound("failure");
@@ -437,9 +371,82 @@ export default function App() {
           ? "flex flex-col lg:flex-row h-screen w-screen bg-[#282a36] font-sans text-[#f8f8f2] overflow-hidden relative"
           : "flex flex-col lg:flex-row h-screen w-screen bg-slate-950 font-sans text-slate-100 overflow-hidden relative"
     }>
-      
+
+      {/* Dynamic document title */}
+      {/* eslint-disable-next-line react-hooks/exhaustive-deps */}
+      {(() => {
+        const base = "CSS The Game";
+        if (screen === "exercise") {
+          document.title = `Nível ${currentLevel.id}: ${currentLevel.title} — ${base}`;
+        } else {
+          document.title = `${base} — Aprenda CSS Jogando!`;
+        }
+        return null;
+      })()}
+
+      {/* 🔔 In-App Confirm Modal (replaces window.confirm globally) */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4 animate-fade-in">
+          {theme === "retro" ? (
+            <div className="bg-[#c0c0c0] border-4 border-t-white border-l-white border-r-black border-b-black p-5 max-w-sm w-full shadow-2xl font-mono text-black">
+              <div className="bg-[#000080] text-white px-2 py-1 flex justify-between items-center mb-4">
+                <span className="text-xs font-bold">⚠ CONFIRMAÇÃO.EXE</span>
+                <button onClick={closeConfirm} className="w-4 h-4 bg-[#c0c0c0] border border-t-white border-l-white border-r-black border-b-black text-[9px] text-black font-bold flex items-center justify-center">X</button>
+              </div>
+              <p className="text-xs leading-relaxed mb-4">{confirmModal.message}</p>
+              <div className="flex gap-2">
+                <button onClick={() => { confirmModal.onConfirm(); closeConfirm(); }} className="flex-1 bg-[#000080] text-white text-xs font-bold py-1.5 border-2 border-t-white border-l-white border-r-black border-b-black active:border-t-black active:border-l-black">
+                  {confirmModal.confirmLabel ?? "Confirmar"}
+                </button>
+                <button onClick={() => { confirmModal.onCancel?.(); closeConfirm(); }} className="flex-1 bg-[#c0c0c0] text-black text-xs font-bold py-1.5 border-2 border-t-white border-l-white border-r-black border-b-black active:border-t-black active:border-l-black">
+                  {confirmModal.cancelLabel ?? "Cancelar"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`max-w-sm w-full p-6 rounded-2xl shadow-2xl border ${
+              theme === "dracula"
+                ? "bg-[#1e1f29] border-[#ff5555]/60 text-[#f8f8f2]"
+                : "bg-slate-900 border-rose-500/30 text-slate-100"
+            }`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  confirmModal.variant === "danger"
+                    ? theme === "dracula" ? "bg-[#ff5555]/15 text-[#ff5555]" : "bg-rose-500/10 text-rose-400"
+                    : theme === "dracula" ? "bg-[#6272a4]/15 text-[#6272a4]" : "bg-slate-700 text-slate-300"
+                }`}>
+                  <AlertTriangle size={20} />
+                </div>
+                <p className="text-sm leading-relaxed">{confirmModal.message}</p>
+              </div>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => { confirmModal.onConfirm(); closeConfirm(); }}
+                  className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition ${
+                    confirmModal.variant === "danger"
+                      ? theme === "dracula" ? "bg-[#ff5555] hover:bg-[#ff6666] text-white" : "bg-rose-600 hover:bg-rose-500 text-white"
+                      : theme === "dracula" ? "bg-[#bd93f9] hover:bg-[#cc99ff] text-[#1e1f29]" : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  }`}
+                >
+                  {confirmModal.confirmLabel ?? "Confirmar"}
+                </button>
+                <button
+                  onClick={() => { confirmModal.onCancel?.(); closeConfirm(); }}
+                  className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition border ${
+                    theme === "dracula" ? "bg-[#282a36] hover:bg-[#44475a] border-[#44475a] text-[#f8f8f2]" : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                  }`}
+                >
+                  {confirmModal.cancelLabel ?? "Cancelar"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 🏆 Newly Unlocked Achievement Modal Overlay */}
       {newlyUnlockedAchievement && (
+
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
           {theme === "retro" ? (
             <div className="bg-[#c0c0c0] border-4 border-t-white border-l-white border-r-black border-b-black p-6 max-w-md w-full shadow-2xl font-mono text-black">
@@ -939,15 +946,15 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  if (window.confirm("Deseja realmente reiniciar todo o progresso do curso?")) {
-                    updateProgress({
-                      hearts: 5,
-                      xp: 0,
-                      completedLevels: [],
-                      levelCss: {},
-                      unlockedAchievements: []
-                    });
-                  }
+                  showConfirm({
+                    message: "Isso vai apagar todo o seu progresso, XP, conquistas e códigos salvos. Esta ação é irreversível.",
+                    confirmLabel: "Reiniciar Tudo",
+                    cancelLabel: "Manter Progresso",
+                    variant: "danger",
+                    onConfirm: () => {
+                      updateProgress({ ...DEFAULT_USER_PROGRESS, hearts: 5 });
+                    },
+                  });
                 }}
                 className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold py-2.5 px-6 rounded-xl transition"
               >
@@ -971,15 +978,16 @@ export default function App() {
               setScreen("exercise");
             }}
             theme={theme}
-            xp={progress.xp !== undefined ? progress.xp : 0}
-            hearts={progress.hearts !== undefined ? progress.hearts : 5}
-            streak={progress.streak !== undefined ? progress.streak : 0}
+            xp={progress.xp}
+            hearts={progress.hearts}
+            streak={progress.streak}
             onTriggerStressTest={handleLaunchStressTests}
             onOpenPractice={handleOpenPracticeQuiz}
           />
 
+
           {/* 💻 Hub Dashboard Area */}
-          <div className={`flex-1 flex flex-col h-full overflow-y-auto ${
+          <div className={`flex-1 flex flex-col h-full overflow-y-auto animate-slide-in-left ${
             theme === "retro" ? "bg-[#c0c0c0] text-black font-mono border-4 border-t-white border-l-white border-r-black border-b-black" : theme === "dracula" ? "bg-[#282a36] text-[#f8f8f2] border border-[#44475a]" : "bg-slate-950 text-slate-100"
           } p-4 md:p-8 custom-scrollbar`}>
             
@@ -1396,14 +1404,14 @@ export default function App() {
         </>
       ) : (
         /* ==================== EXERCISE SCREEN (FULLSCREEN WORKSPACE) ==================== */
-        <div className={`flex-1 flex flex-col h-screen overflow-hidden ${
+        <div className={`flex-1 flex flex-col h-screen overflow-hidden animate-slide-in-right ${
           theme === "retro"
             ? "bg-[#c0c0c0] text-black font-mono"
             : theme === "dracula"
               ? "bg-[#282a36] text-[#f8f8f2] font-sans"
               : "bg-slate-950 text-slate-100 font-sans"
         }`}>
-          
+
           {/* Workspace Subheader / Level Navigation */}
           <div className={
             theme === "retro"

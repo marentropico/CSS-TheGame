@@ -213,7 +213,7 @@ export default function Sidebar({
         </div>
         <div className={barStyles.barTrack}>
           <div
-            className={`${barStyles.barFill} rounded-full transition-all duration-500`}
+            className={`${barStyles.barFill} rounded-full transition-all duration-700 ease-out`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -323,12 +323,19 @@ export default function Sidebar({
                         }`;
                       }
 
+                      // Find the first incomplete level to mark as "next recommended"
+                      const nextRecommendedId = (() => {
+                        const incomplete = levels.filter(l => !completedLevels.includes(l.id));
+                        return incomplete.length > 0 ? incomplete[0].id : null;
+                      })();
+                      const isNextRecommended = !isCompleted && !isSelected && lvl.id === nextRecommendedId;
+
                       return (
                         <button
                           key={lvl.id}
                           id={`btn-select-level-${lvl.id}`}
                           onClick={() => onSelectLevel(lvl.id)}
-                          className={btnClass}
+                          className={`${btnClass} ${isNextRecommended ? (theme === "dracula" ? "ring-1 ring-[#50fa7b]/40" : theme === "retro" ? "" : "ring-1 ring-emerald-500/30") : ""}`}
                         >
                           <div className="flex items-center space-x-3 overflow-hidden mr-2">
                             {isCompleted ? (
@@ -338,6 +345,12 @@ export default function Sidebar({
                                 ) : (
                                   <CheckCircle2 size={16} fill={theme === "dracula" ? "rgba(80, 250, 123, 0.1)" : "rgba(16, 185, 129, 0.1)"} />
                                 )}
+                              </div>
+                            ) : isNextRecommended ? (
+                              <div className={`w-4 h-4 rounded-full border text-[9px] font-mono flex items-center justify-center flex-shrink-0 animate-pulse ${
+                                theme === "dracula" ? "border-[#50fa7b] text-[#50fa7b]" : "border-emerald-500 text-emerald-400"
+                              }`}>
+                                {lvl.id}
                               </div>
                             ) : (
                               <div className={`w-4 h-4 rounded-full border text-[9px] font-mono flex items-center justify-center flex-shrink-0 ${
@@ -358,9 +371,18 @@ export default function Sidebar({
                               }`}>
                                 {lvl.id}. {lvl.title}
                               </p>
-                              <span className={`inline-block font-bold px-1 py-0.2 rounded mt-1 ${getDifficultyStyles(lvl.difficulty)}`}>
-                                {lvl.difficulty}
-                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={`inline-block font-bold px-1 py-0.2 rounded ${getDifficultyStyles(lvl.difficulty)}`}>
+                                  {lvl.difficulty}
+                                </span>
+                                {isNextRecommended && theme !== "retro" && (
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    theme === "dracula" ? "bg-[#50fa7b]/15 text-[#50fa7b]" : "bg-emerald-500/10 text-emerald-400"
+                                  }`}>
+                                    ▶ Próximo
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {theme !== "retro" && <ChevronRight size={14} className="opacity-40 flex-shrink-0" />}
