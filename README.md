@@ -13,11 +13,23 @@ O jogo possui suporte completo a múltiplos temas visuais icônicos que alteram 
 ### 1. 🌌 Modern Indigo (Padrão)
 Um visual elegante, escuro e de alta fidelidade técnica, utilizando tons sutis de azul profundo, ardósia e gradientes de roxo futurista.
 
+<p align="center">
+  <img src="assets/screenshots/theme_modern.png" alt="Tema Modern Indigo" width="600" />
+</p>
+
 ### 2. 🧛 Dracula Theme
 Inspirado na clássica e amada paleta de cores para programadores, trazendo o contraste perfeito com destaques em rosa, roxo e verde neon.
 
+<p align="center">
+  <img src="assets/screenshots/theme_dracula.png" alt="Tema Dracula" width="600" />
+</p>
+
 ### 3. 💾 Retro Windows 95 / DOS
 Um retorno nostálgico aos sistemas operacionais clássicos! Botões chanfrados tridimensionais, fontes monoespaçadas, barras de progresso cinzas e bordas duplas pontilhadas.
+
+<p align="center">
+  <img src="assets/screenshots/theme_retro.png" alt="Tema Retro Windows 95" width="600" />
+</p>
 
 ---
 
@@ -54,6 +66,10 @@ Os desafios são progressivos e abordam tópicos essenciais para o desenvolvimen
 
 ### 📱 7. Responsividade Completa & Modo Paisagem
 * Otimizado para dispositivos móveis! Se o usuário deitar o celular (Modo Paisagem/Landscape), o layout automaticamente se reajusta para o formato de duas colunas semelhante ao desktop (preview à esquerda e editor à direita), maximizando o espaço disponível.
+
+<p align="center">
+  <img src="assets/screenshots/mobile_exercise.png" alt="Visual de Exercício no Mobile" width="300" />
+</p>
 
 ---
 
